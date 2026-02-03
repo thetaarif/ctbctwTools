@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.arif2fast.views.FileManagerController"
+      spacing="15">
+    <padding>
+        <Insets bottom="20" left="20" right="20" top="20"/>
+    </padding>
+
+    <!-- Title -->
+    <Label text="File Manager - SQL/YAML Upload Tool" styleClass="title">
+        <font>
+            <Font name="System Bold" size="20"/>
+        </font>
+    </Label>
+
+    <Separator/>
+
+    <!-- Upload Section -->
+    <VBox spacing="10" styleClass="upload-section">
+        <Label text="Upload File" styleClass="section-header">
+            <font>
+                <Font name="System Bold" size="14"/>
+            </font>
+        </Label>
+
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Select File:" minWidth="80"/>
+            <TextField fx:id="filePathTextField" editable="false" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="browseButton" text="Browse..." onAction="#handleBrowse"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Module:" minWidth="80"/>
+            <ComboBox fx:id="moduleComboBox" promptText="Select module" HBox.hgrow="ALWAYS"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Version:" minWidth="80"/>
+            <ComboBox fx:id="versionComboBox" editable="true" promptText="Select or enter version" HBox.hgrow="ALWAYS"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button fx:id="uploadButton" text="Upload File" onAction="#handleUpload" styleClass="primary-button"/>
+        </HBox>
+    </VBox>
+
+    <Separator/>
+
+    <!-- File List Section -->
+    <VBox spacing="10" VBox.vgrow="ALWAYS">
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Uploaded Files" styleClass="section-header">
+                <font>
+                    <Font name="System Bold" size="14"/>
+                </font>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="deleteAllButton" text="Delete All" onAction="#handleAllDelete" styleClass="danger-button"/>
+            <Button fx:id="deleteButton" text="Delete Selected" onAction="#handleDelete" styleClass="danger-button"/>
+            <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh"/>
+        </HBox>
+
+        <TreeView fx:id="fileTreeView" VBox.vgrow="ALWAYS" minHeight="200"/>
+
+    </VBox>
+
+    <Separator/>
+
+    <!-- Update Command Section -->
+    <VBox spacing="10">
+        <Label text="Execute Module Update" styleClass="section-header">
+            <font>
+                <Font name="System Bold" size="14"/>
+            </font>
+        </Label>
+        
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Modules:" minWidth="80"/>
+            <MenuButton fx:id="updateModulesMenuButton" text="Select Modules" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+            <Button fx:id="executeUpdateButton" text="Execute Update" onAction="#handleExecuteUpdate" styleClass="primary-button"/>
+        </HBox>
+    </VBox>
+
+    <Separator/>
+
+    <!-- Status Section -->
+    <Label fx:id="statusLabel" text="Ready" wrapText="true" styleClass="status-label">
+        <font>
+            <Font name="System" size="12"/>
+        </font>
+    </Label>
+
+</VBox>
