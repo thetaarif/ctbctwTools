@@ -52,6 +52,9 @@ dependencies {
     // WedasoftFX
     implementation 'com.wedasoft:wedasoftfxguicommons:1.0.0'
     implementation 'com.wedasoft:wedasoftfxtestbase:1.0.0'
+
+    // JSON parsing for auto-update
+    implementation 'com.google.code.gson:gson:2.10.1'
 }
 
 application {
@@ -111,25 +114,34 @@ task runJfxSpringBootApp(type: DefaultTask) {
     dependsOn bootRun
 }
 
-task buildExecutableJar(type: DefaultTask) {
+task incrementVersion(type: DefaultTask) {
     group = "${customTasksGradleGroupName}"
-    dependsOn cleanBuildDir, bootJar
-    mustRunAfter(cleanBuildDir)
-
     doLast {
-        def versionParts = version.split('\\.')
+        def props = new Properties()
+        versionPropertiesFile.withInputStream { props.load(it) }
+        def currentV = props.getProperty('version')
+        def versionParts = currentV.split('\\.')
         if (versionParts.size() == 3) {
             def patch = versionParts[2].toInteger() + 1
             def newVersion = "${versionParts[0]}.${versionParts[1]}.${patch}"
             
-            def props = new Properties()
-            file('version.properties').withInputStream { props.load(it) }
             props.setProperty('version', newVersion)
-            file('version.properties').withOutputStream { props.store(it, null) }
+            versionPropertiesFile.withOutputStream { props.store(it, null) }
             
-            println "Auto-incremented version: ${version} -> ${newVersion}"
+            // Update project version for the current execution
+            project.version = newVersion
+            println "Auto-incremented version: ${currentV} -> ${newVersion}"
         }
     }
+}
+
+task buildExecutableJar(type: DefaultTask) {
+    group = "${customTasksGradleGroupName}"
+    dependsOn incrementVersion, cleanBuildDir, bootJar
+    
+    // Ensure increment happens before build tasks
+    incrementVersion.mustRunAfter cleanBuildDir
+    bootJar.mustRunAfter incrementVersion
 }
 
 task packageAsAppImage(type: Exec) {

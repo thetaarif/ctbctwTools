@@ -121,15 +121,18 @@ public class JfxSpringBootAppLauncher {
         @Value("${spring.application.name}")
         private final String applicationTitle;
         private final ApplicationContext springApplicationContext;
+        private final com.arif2fast.services.UpdateService updateService;
 
         private String applicationVersion = "Unknown";
 
         public JfxApplicationStartEventListener(
                 @Value("${spring.application.name}") String applicationTitle,
-                ApplicationContext springApplicationContext) {
+                ApplicationContext springApplicationContext,
+                com.arif2fast.services.UpdateService updateService) {
 
             this.applicationTitle = applicationTitle;
             this.springApplicationContext = springApplicationContext;
+            this.updateService = updateService;
             loadVersion();
         }
 
@@ -160,6 +163,10 @@ public class JfxSpringBootAppLauncher {
                 stage.setResizable(false);
                 stage.show();
                 log.info(LOG_PREFIX + "JavaFx Spring boot application started.");
+
+                // Check for updates after the main window is shown
+                checkForUpdates(stage);
+
             } catch (Exception e) {
                 log.error("Failed to load FXML or start application", e);
                 e.printStackTrace();
@@ -169,6 +176,27 @@ public class JfxSpringBootAppLauncher {
                 log.info(LOG_PREFIX + "Closing splash screen.");
                 SplashScreenPreloader.stage.close();
             }
+        }
+
+        /**
+         * Check for updates in background and show dialog if available.
+         */
+        private void checkForUpdates(Stage stage) {
+            updateService.setCurrentVersion(this.applicationVersion);
+            updateService.checkForUpdateAsync().thenAccept(updateInfoOpt -> {
+                if (updateInfoOpt.isPresent()) {
+                    Platform.runLater(() -> {
+                        log.info(LOG_PREFIX + "Showing update dialog for version: " +
+                                updateInfoOpt.get().getVersion());
+                        com.arif2fast.views.UpdateDialog dialog = new com.arif2fast.views.UpdateDialog(
+                                stage, updateService, updateInfoOpt.get(), this.applicationVersion);
+                        dialog.show();
+                    });
+                }
+            }).exceptionally(ex -> {
+                log.warn(LOG_PREFIX + "Update check failed: " + ex.getMessage());
+                return null;
+            });
         }
 
     }
