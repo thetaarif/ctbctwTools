@@ -37,11 +37,20 @@ public class FileManagementService {
     @Value("${file.manager.allowed.extensions}")
     private String allowedExtensions;
 
-    @Value("${file.manager.modules}")
+    @Value("${file.manager.modules:}")
     private String modules;
 
+    @Value("${file.manager.default.modules}")
+    private String defaultModules;
+
     public List<String> getModules() {
-        return Arrays.asList(modules.split(","));
+        return Stream.concat(
+                        Arrays.stream(defaultModules.split(",")),
+                        Arrays.stream(modules.split(","))
+                )
+                .filter(s -> !s.trim().isEmpty())
+                .distinct()
+                .toList();
     }
 
     public boolean isValidExtension(String fileName) {
