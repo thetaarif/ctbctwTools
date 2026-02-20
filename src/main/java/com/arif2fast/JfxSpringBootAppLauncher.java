@@ -8,6 +8,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
+import javafx.scene.image.Image;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -30,7 +31,7 @@ public class JfxSpringBootAppLauncher {
 
         log.info(LOG_PREFIX
                 + "Set full qualified class name as system property for defining the splash screen preloader.");
-        // System.setProperty("javafx.preloader", SPLASHSCREEN_CLASS_PATH);
+        System.setProperty("javafx.preloader", SPLASHSCREEN_CLASS_PATH);
 
         log.info(LOG_PREFIX + "Launching the JavaFx application.");
         Application.launch(JfxSpringBootApp.class, args);
@@ -160,6 +161,11 @@ public class JfxSpringBootAppLauncher {
                 Stage stage = event.getStage();
                 stage.setScene(scene);
                 stage.setTitle(this.applicationTitle + " v" + this.applicationVersion);
+                try {
+                    stage.getIcons().add(new Image(getClass().getResourceAsStream("/assets/icon.png")));
+                } catch (Exception e) {
+                    log.warn("Could not load application icon: " + e.getMessage());
+                }
                 stage.setResizable(false);
                 stage.show();
                 log.info(LOG_PREFIX + "JavaFx Spring boot application started.");
@@ -173,8 +179,13 @@ public class JfxSpringBootAppLauncher {
                 throw new RuntimeException(e);
             }
             if (SplashScreenPreloader.stage != null) {
-                log.info(LOG_PREFIX + "Closing splash screen.");
-                SplashScreenPreloader.stage.close();
+                javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                        javafx.util.Duration.seconds(4));
+                pause.setOnFinished(e -> {
+                    log.info(LOG_PREFIX + "Closing splash screen.");
+                    SplashScreenPreloader.stage.close();
+                });
+                pause.play();
             }
         }
 

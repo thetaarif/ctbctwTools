@@ -13,7 +13,7 @@
     </padding>
 
     <!-- Title -->
-    <Label text="File Manager - SQL/YAML Upload Tool" styleClass="title">
+    <Label text="Liquibase CLI - SQL/YAML Upload Tool" styleClass="title">
         <font>
             <Font name="System Bold" size="20"/>
         </font>

@@ -210,7 +210,7 @@ private File createAndPrepareOutputDir() {
 private String getAppIconFilePath() {
     println "Loading app icon..."
     println "\tHint: Use '.ico' as preferred file format. Other formats may not be supported correctly."
-    final String resourcePath = "src/main/resources/assets/app-icon.ico"
+    final String resourcePath = "src/main/resources/assets/icon.png"
     File file = project.file(resourcePath) as File
     if (!file.exists() || !file.isFile()) {
         println "\tWARN: No app icon file found at path: '${file.getCanonicalPath()}'."
