@@ -16,8 +16,12 @@ import org.springframework.context.*;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
 
 @SpringBootApplication
 @Slf4j
@@ -45,18 +49,28 @@ public class JfxSpringBootAppLauncher {
         public void init() {
             log.info(LOG_PREFIX + "Executing overridden 'init()' of JavaFx Application...");
 
-            java.util.Set<java.io.File> searchDirs = new java.util.HashSet<>();
+            Set<File> searchDirs = collectSearchDirectories();
+            List<String> propertyLocations = findPropertyFiles(searchDirs);
+            String additionalLocations = buildAdditionalLocations(propertyLocations);
 
-            // 1. Current Working Directory
-            java.io.File cwd = new java.io.File(".");
-            searchDirs.add(cwd.getAbsoluteFile());
+            initializeSpringContext(additionalLocations);
+        }
+
+        private Set<File> collectSearchDirectories() {
+            Set<File> searchDirs = new HashSet<>();
+
+            File cwd = new File(".").getAbsoluteFile();
+            searchDirs.add(cwd);
             log.info(LOG_PREFIX + "Search Directory (CWD): " + cwd.getAbsolutePath());
 
-            // 2. JAR Directory (if running from JAR)
+            addJarDirectory(searchDirs);
+
+            return searchDirs;
+        }
+
+        private void addJarDirectory(Set<File> searchDirs) {
             try {
-                org.springframework.boot.system.ApplicationHome home = new org.springframework.boot.system.ApplicationHome(
-                        JfxSpringBootAppLauncher.class);
-                java.io.File jarDir = home.getDir();
+                File jarDir = new org.springframework.boot.system.ApplicationHome(JfxSpringBootAppLauncher.class).getDir();
                 if (jarDir != null && jarDir.exists()) {
                     searchDirs.add(jarDir.getAbsoluteFile());
                     log.info(LOG_PREFIX + "Search Directory (Home): " + jarDir.getAbsolutePath());
@@ -64,22 +78,33 @@ public class JfxSpringBootAppLauncher {
             } catch (Exception e) {
                 log.warn(LOG_PREFIX + "Failed to resolve Home directory: " + e.getMessage());
             }
+        }
 
-            java.util.List<String> propertyLocations = new java.util.ArrayList<>();
+        private List<String> findPropertyFiles(Set<File> searchDirs) {
+            List<String> propertyLocations = new ArrayList<>();
 
-            for (java.io.File dir : searchDirs) {
-                if (dir.exists() && dir.isDirectory()) {
-                    java.io.File[] files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".properties"));
-                    if (files != null) {
-                        for (java.io.File f : files) {
-                            String location = "optional:file:" + f.getAbsolutePath();
-                            propertyLocations.add(location);
-                            log.info(LOG_PREFIX + "Found external property file: " + f.getAbsolutePath());
-                        }
-                    }
-                }
+            for (File dir : searchDirs) {
+                collectPropertyFilesFromDirectory(dir, propertyLocations);
             }
 
+            return propertyLocations;
+        }
+
+        private void collectPropertyFilesFromDirectory(File dir, List<String> propertyLocations) {
+            if (!dir.exists() || !dir.isDirectory()) {
+                return;
+            }
+
+            File[] files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".properties"));
+            if (files != null) {
+                for (File f : files) {
+                    propertyLocations.add("optional:file:" + f.getAbsolutePath());
+                    log.info(LOG_PREFIX + "Found external property file: " + f.getAbsolutePath());
+                }
+            }
+        }
+
+        private String buildAdditionalLocations(List<String> propertyLocations) {
             String additionalLocations = String.join(",", propertyLocations);
 
             if (additionalLocations.isEmpty()) {
@@ -88,6 +113,10 @@ public class JfxSpringBootAppLauncher {
                 log.info(LOG_PREFIX + "Configuring additional property locations: " + additionalLocations);
             }
 
+            return additionalLocations;
+        }
+
+        private void initializeSpringContext(String additionalLocations) {
             springApplicationContext = new SpringApplicationBuilder()
                     .sources(JfxSpringBootAppLauncher.class)
                     .properties("spring.config.additional-location=" + additionalLocations)
@@ -153,31 +182,39 @@ public class JfxSpringBootAppLauncher {
         public void onApplicationEvent(JfxApplicationStartEvent event) {
             try {
                 log.info(LOG_PREFIX + "Computing 'JfxApplicationStartEvent'...");
-                FXMLLoader fxmlLoader = new FXMLLoader(
-                        getClass().getResource("/com/arif2fast/views/file-manager.fxml"));
-                fxmlLoader.setControllerFactory(springApplicationContext::getBean);
-                Parent root = fxmlLoader.load();
-                Scene scene = new Scene(root, 600, 850);
                 Stage stage = event.getStage();
-                stage.setScene(scene);
-                stage.setTitle(this.applicationTitle + " v" + this.applicationVersion);
-                try {
-                    stage.getIcons().add(new Image(getClass().getResourceAsStream("/assets/icon.png")));
-                } catch (Exception e) {
-                    log.warn("Could not load application icon: " + e.getMessage());
-                }
-                stage.setResizable(false);
+                initializePrimaryStage(stage);
                 stage.show();
                 log.info(LOG_PREFIX + "JavaFx Spring boot application started.");
-
-                // Check for updates after the main window is shown
                 checkForUpdates(stage);
-
             } catch (Exception e) {
                 log.error("Failed to load FXML or start application", e);
-                e.printStackTrace();
                 throw new RuntimeException(e);
             }
+            closeSplashScreen();
+        }
+
+        private void initializePrimaryStage(Stage stage) throws IOException {
+            FXMLLoader fxmlLoader = new FXMLLoader(
+                    getClass().getResource("/com/arif2fast/views/file-manager.fxml"));
+            fxmlLoader.setControllerFactory(springApplicationContext::getBean);
+            Parent root = fxmlLoader.load();
+            Scene scene = new Scene(root, 600, 850);
+            stage.setScene(scene);
+            stage.setTitle(this.applicationTitle + " v" + this.applicationVersion);
+            loadApplicationIcon(stage);
+            stage.setResizable(false);
+        }
+
+        private void loadApplicationIcon(Stage stage) {
+            try {
+                stage.getIcons().add(new Image(getClass().getResourceAsStream("/assets/icon.png")));
+            } catch (Exception e) {
+                log.warn("Could not load application icon: " + e.getMessage());
+            }
+        }
+
+        private void closeSplashScreen() {
             if (SplashScreenPreloader.stage != null) {
                 javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
                         javafx.util.Duration.seconds(4));
