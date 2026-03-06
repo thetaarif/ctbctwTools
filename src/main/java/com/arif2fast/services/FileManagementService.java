@@ -187,7 +187,7 @@ public class FileManagementService {
                 .findFirst();
     }
 
-    public List<String> cleanupYamlFiles() {
+    public List<String> cleanupYamlFiles(boolean deleteFromProject) {
         List<String> resultMessages = new ArrayList<>();
         Path rootPath = Paths.get(liquibaseDirectory);
 
@@ -217,15 +217,35 @@ public class FileManagementService {
                         if (fileName.toLowerCase().startsWith("master-changelog")) {
                             return false;
                         }
+                        // Exclude specific protected file
+                        if (fileName.equalsIgnoreCase("9999995_ADD_NATIVE_YAML_SQL_NATIVE_YAML_0000_CTBCTW.yaml")) {
+                            return false;
+                        }
                         return true;
                     })
                     .toList();
 
             for (Path path : filesToDelete) {
                 try {
+                    String fileName = path.getFileName().toString();
+                    String moduleName = "unknown";
+                    try {
+                        Path relative = rootPath.relativize(path);
+                        if (relative.getNameCount() > 0) {
+                            moduleName = relative.getName(0).toString();
+                        }
+                    } catch (Exception e) {
+                        log.error("Could not determine module name for path {} during cleanup", path, e);
+                    }
+
                     Files.delete(path);
                     resultMessages.add("Deleting file: " + path);
                     log.info("Deleted file during cleanup: {}", path);
+
+                    if (deleteFromProject && !moduleName.equals("unknown")) {
+                        deleteFileFromProject(moduleName, fileName);
+                        resultMessages.add("  - Also deleted from project: " + moduleName + "/" + fileName);
+                    }
                 } catch (IOException e) {
                     String errorMsg = "Failed to delete file: " + path + " (" + e.getMessage() + ")";
                     resultMessages.add(errorMsg);

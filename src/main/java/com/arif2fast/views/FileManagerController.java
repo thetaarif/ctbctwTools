@@ -7,7 +7,18 @@ import com.arif2fast.services.ScriptExecutorService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.geometry.Pos;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -193,17 +204,16 @@ public class FileManagerController {
 
     @FXML
     private void handleAllDelete() {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirm Delete All");
-        confirmation.setHeaderText("Delete All Files");
-        confirmation.setContentText("Are you sure you want to delete ALL files? This action cannot be undone.");
+        Optional<ButtonType> result = showDeleteConfirmation("Confirm Delete All",
+                "Delete All Files",
+                "Are you sure you want to delete ALL files? This action cannot be undone.");
 
-        Optional<ButtonType> result = confirmation.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            updateStatus("Executing delete all yaml/sqlx files");
+        if (result.isPresent() && (result.get().getText().equals("Delete Both") || result.get().getText().equals("Delete List Only"))) {
+            boolean deleteFromProject = result.get().getText().equals("Delete Both");
+            updateStatus("Executing delete all yaml/sqlx files" + (deleteFromProject ? " (including project files)" : ""));
 
             new Thread(() -> {
-                List<String> results = fileManagementService.cleanupYamlFiles();
+                List<String> results = fileManagementService.cleanupYamlFiles(deleteFromProject);
                 String output = String.join("\n", results);
 
                 Platform.runLater(() -> {
@@ -239,23 +249,27 @@ public class FileManagerController {
             return;
         }
 
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Confirm Delete");
-        confirmation.setHeaderText("Delete Selected Files");
-
         String contentText = "Are you sure you want to delete " + filesCount + " selected file(s)?";
         if (foldersCount > 0) {
             contentText += "\nNote: " + foldersCount + " folder(s) in your selection will be ignored.";
         }
-        confirmation.setContentText(contentText);
 
-        Optional<ButtonType> result = confirmation.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
+        Optional<ButtonType> result = showDeleteConfirmation("Confirm Delete", "Delete Selected Files", contentText);
+
+        if (result.isPresent() && (result.get().getText().equals("Delete Both") || result.get().getText().equals("Delete List Only"))) {
+            boolean deleteFromProject = result.get().getText().equals("Delete Both");
             int successCount = 0;
             int failCount = 0;
 
             for (Path path : filesToDelete) {
                 String fileName = path.getFileName().toString();
+
+                // Prevent deletion of protected file
+                if (fileName.equalsIgnoreCase("9999995_ADD_NATIVE_YAML_SQL_NATIVE_YAML_0000_CTBCTW.yaml")) {
+                    log.warn("Attempted to delete protected file: {}", fileName);
+                    failCount++;
+                    continue;
+                }
 
                 String moduleName = "XXXX";
                 try {
@@ -269,8 +283,8 @@ public class FileManagerController {
 
                 if (fileManagementService.deleteRecursive(path)) {
                     successCount++;
-                    // Also delete from project directory
-                    if (fileManagementService.getModules().contains(moduleName)) {
+                    // Also delete from project directory if requested
+                    if (deleteFromProject && fileManagementService.getModules().contains(moduleName)) {
                         fileManagementService.deleteFileFromProject(moduleName, fileName);
                     }
                 } else {
@@ -290,6 +304,73 @@ public class FileManagerController {
                 showError("Delete partially failed. Success: " + successCount + ", Failed: " + failCount);
             }
         }
+    }
+
+    private Optional<ButtonType> showDeleteConfirmation(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.NONE);
+        alert.setTitle("System Confirmation");
+
+        // Create buttons
+        ButtonType deleteBoth = new ButtonType("Delete Both", ButtonBar.ButtonData.OK_DONE);
+        ButtonType deleteListOnly = new ButtonType("Delete List Only", ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(deleteBoth, deleteListOnly, cancel);
+
+        // Header Section
+        Label headerLabel = new Label(header);
+        headerLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        headerLabel.setTextFill(Color.web("#d32f2f")); // Professional red
+
+        // Content Section
+        Text contentText = new Text(content);
+        contentText.setWrappingWidth(400);
+        contentText.setFont(Font.font("Segoe UI", 14));
+
+        VBox contentBox = new VBox(10);
+        contentBox.getChildren().addAll(headerLabel, contentText);
+        contentBox.setPadding(new javafx.geometry.Insets(0, 0, 0, 15));
+
+        // Add a warning icon/symbol (using a large text character or system icon)
+        Label iconLabel = new Label("⚠");
+        iconLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 48));
+        iconLabel.setTextFill(Color.web("#fbc02d")); // Professional Amber
+
+        HBox mainLayout = new HBox(10);
+        mainLayout.setAlignment(Pos.CENTER_LEFT);
+        mainLayout.setPadding(new javafx.geometry.Insets(20));
+        mainLayout.getChildren().addAll(iconLabel, contentBox);
+
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setContent(mainLayout);
+        dialogPane.setPrefWidth(600);
+        dialogPane.setMinHeight(Region.USE_PREF_SIZE);
+
+        // Add some basic styling to buttons via the dialog pane's lookup
+        Platform.runLater(() -> {
+            Button btnBoth = (Button) dialogPane.lookupButton(deleteBoth);
+            if (btnBoth != null) {
+                btnBoth.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15 8 15;");
+                btnBoth.setMinWidth(140);
+            }
+            Button btnList = (Button) dialogPane.lookupButton(deleteListOnly);
+            if (btnList != null) {
+                btnList.setStyle("-fx-background-color: #f5f5f5; -fx-border-color: #bdbdbd; -fx-font-weight: bold; -fx-padding: 8 15 8 15;");
+                btnList.setMinWidth(140);
+            }
+            Button btnCancel = (Button) dialogPane.lookupButton(cancel);
+            if (btnCancel != null) {
+                btnCancel.setStyle("-fx-padding: 8 15 8 15;");
+                btnCancel.setMinWidth(100);
+            }
+
+            // Force window to resize to its content to prevent clipping
+            if (dialogPane.getScene() != null && dialogPane.getScene().getWindow() != null) {
+                dialogPane.getScene().getWindow().sizeToScene();
+            }
+        });
+
+        return alert.showAndWait();
     }
 
     @FXML
