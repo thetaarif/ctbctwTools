@@ -3,97 +3,73 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 
 <VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.arif2fast.views.FileManagerController"
-      spacing="15">
+      stylesheets="@styles.css"
+      spacing="20">
     <padding>
-        <Insets bottom="20" left="20" right="20" top="20"/>
+        <Insets bottom="25" left="25" right="25" top="25"/>
     </padding>
 
     <!-- Title -->
-    <Label text="Liquibase CLI - SQL/YAML Upload Tool" styleClass="title">
-        <font>
-            <Font name="System Bold" size="20"/>
-        </font>
-    </Label>
+    <Label text="Liquibase CLI - SQL/YAML Upload Tool" styleClass="title"/>
 
-    <Separator/>
+    <!-- Upload Section Panel -->
+    <VBox spacing="15" styleClass="panel, upload-section">
+        <Label text="Upload File" styleClass="section-header"/>
 
-    <!-- Upload Section -->
-    <VBox spacing="10" styleClass="upload-section">
-        <Label text="Upload File" styleClass="section-header">
-            <font>
-                <Font name="System Bold" size="14"/>
-            </font>
-        </Label>
-
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Select File:" minWidth="80"/>
-            <TextField fx:id="filePathTextField" editable="false" HBox.hgrow="ALWAYS"/>
-            <Button fx:id="browseButton" text="Browse..." onAction="#handleBrowse"/>
+        <HBox spacing="15" alignment="CENTER_LEFT">
+            <Label text="Select File:" minWidth="60"/>
+            <TextField fx:id="filePathTextField" editable="false" HBox.hgrow="ALWAYS" prefHeight="35"/>
+            <Button fx:id="browseButton" text="Browse..." onAction="#handleBrowse" prefHeight="35"/>
         </HBox>
 
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Module:" minWidth="80"/>
-            <ComboBox fx:id="moduleComboBox" promptText="Select module" HBox.hgrow="ALWAYS"/>
+        <HBox spacing="15" alignment="CENTER_LEFT">
+            <Label text="Module:" minWidth="60"/>
+            <ComboBox fx:id="moduleComboBox" promptText="Select module" HBox.hgrow="ALWAYS" prefHeight="35" maxWidth="Infinity"/>
         </HBox>
 
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Version:" minWidth="80"/>
-            <ComboBox fx:id="versionComboBox" editable="true" promptText="Select or enter version" HBox.hgrow="ALWAYS"/>
+        <HBox spacing="15" alignment="CENTER_LEFT">
+            <Label text="Version:" minWidth="60"/>
+            <ComboBox fx:id="versionComboBox" editable="true" promptText="Select or enter version" HBox.hgrow="ALWAYS" prefHeight="35" maxWidth="Infinity"/>
         </HBox>
 
-        <HBox spacing="10" alignment="CENTER_RIGHT">
-            <Button fx:id="uploadButton" text="Upload File" onAction="#handleUpload" styleClass="primary-button"/>
+        <HBox spacing="15" alignment="CENTER_RIGHT">
+            <Button fx:id="uploadButton" text="Upload File" onAction="#handleUpload" styleClass="primary-button" prefHeight="35" prefWidth="120"/>
         </HBox>
     </VBox>
 
-    <Separator/>
-
-    <!-- File List Section -->
-    <VBox spacing="10" VBox.vgrow="ALWAYS">
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Uploaded Files" styleClass="section-header">
-                <font>
-                    <Font name="System Bold" size="14"/>
-                </font>
-            </Label>
+    <!-- File List Section Panel -->
+    <VBox spacing="15" VBox.vgrow="ALWAYS" styleClass="panel">
+        <HBox spacing="15" alignment="CENTER_LEFT">
+            <Label text="Uploaded Files" styleClass="section-header"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <Button fx:id="deleteAllButton" text="Delete All" onAction="#handleAllDelete" styleClass="danger-button"/>
-            <Button fx:id="deleteButton" text="Delete Selected" onAction="#handleDelete" styleClass="danger-button"/>
-            <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh"/>
+            <Button fx:id="deleteAllButton" text="Delete All" onAction="#handleAllDelete" styleClass="danger-button" prefHeight="35"/>
+            <Button fx:id="deleteButton" text="Delete Selected" onAction="#handleDelete" styleClass="danger-button" prefHeight="35"/>
+            <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefHeight="35"/>
         </HBox>
 
-        <TreeView fx:id="fileTreeView" VBox.vgrow="ALWAYS" minHeight="200"/>
-
+        <TreeView fx:id="fileTreeView" VBox.vgrow="ALWAYS" minHeight="250"/>
     </VBox>
 
-    <Separator/>
-
-    <!-- Update Command Section -->
-    <VBox spacing="10">
-        <Label text="Execute Module Update" styleClass="section-header">
-            <font>
-                <Font name="System Bold" size="14"/>
-            </font>
-        </Label>
+    <!-- Update Command Section Panel -->
+    <VBox spacing="15" styleClass="panel">
+        <Label text="Execute Module Update" styleClass="section-header"/>
         
-        <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Modules:" minWidth="80"/>
-            <MenuButton fx:id="updateModulesMenuButton" text="Select Modules" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
-            <Button fx:id="executeUpdateButton" text="Execute Update" onAction="#handleExecuteUpdate" styleClass="primary-button"/>
+        <HBox spacing="15" alignment="CENTER_LEFT">
+            <Label text="Modules:" minWidth="60"/>
+            <MenuButton fx:id="updateModulesMenuButton" text="Select Modules" HBox.hgrow="ALWAYS" maxWidth="Infinity" prefHeight="35"/>
+            <Button fx:id="executeUpdateButton" text="Execute Update" onAction="#handleExecuteUpdate" styleClass="primary-button" prefHeight="35" prefWidth="150"/>
         </HBox>
     </VBox>
-
-    <Separator/>
 
     <!-- Status Section -->
-    <Label fx:id="statusLabel" text="Ready" wrapText="true" styleClass="status-label">
-        <font>
-            <Font name="System" size="12"/>
-        </font>
-    </Label>
+    <HBox>
+        <padding>
+            <Insets top="-5"/>
+        </padding>
+        <Label fx:id="statusLabel" text="Ready" wrapText="true" styleClass="status-label"/>
+    </HBox>
 
 </VBox>
