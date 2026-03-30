@@ -41,27 +41,18 @@
     </VBox>
 
     <!-- File List Section Panel -->
-    <VBox spacing="15" VBox.vgrow="ALWAYS" styleClass="panel">
-        <HBox spacing="15" alignment="CENTER_LEFT">
-            <Label text="Uploaded Files" styleClass="section-header"/>
+    <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="panel">
+        <Label text="Uploaded Files" styleClass="section-header"/>
+        
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefHeight="35"/>
             <Region HBox.hgrow="ALWAYS"/>
             <Button fx:id="deleteAllButton" text="Delete All" onAction="#handleAllDelete" styleClass="danger-button" prefHeight="35"/>
             <Button fx:id="deleteButton" text="Delete Selected" onAction="#handleDelete" styleClass="danger-button" prefHeight="35"/>
-            <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefHeight="35"/>
+            <Button fx:id="executeUpdateButton" text="Execute Update" onAction="#handleExecuteUpdate" styleClass="primary-button" prefHeight="35"/>
         </HBox>
 
         <TreeView fx:id="fileTreeView" VBox.vgrow="ALWAYS" minHeight="250"/>
-    </VBox>
-
-    <!-- Update Command Section Panel -->
-    <VBox spacing="15" styleClass="panel">
-        <Label text="Execute Module Update" styleClass="section-header"/>
-        
-        <HBox spacing="15" alignment="CENTER_LEFT">
-            <Label text="Modules:" minWidth="60"/>
-            <MenuButton fx:id="updateModulesMenuButton" text="Select Modules" HBox.hgrow="ALWAYS" maxWidth="Infinity" prefHeight="35"/>
-            <Button fx:id="executeUpdateButton" text="Execute Update" onAction="#handleExecuteUpdate" styleClass="primary-button" prefHeight="35" prefWidth="150"/>
-        </HBox>
     </VBox>
 
     <!-- Status Section -->

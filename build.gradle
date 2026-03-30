@@ -50,6 +50,15 @@ dependencies {
     implementation "org.openjfx:javafx-base:${javaFxVersion}"
     implementation "org.openjfx:javafx-graphics:${javaFxVersion}"
 
+    // Cross-platform JavaFX native dependencies
+    def platforms = ['win', 'mac', 'mac-aarch64', 'linux']
+    platforms.each { platform ->
+        implementation "org.openjfx:javafx-controls:${javaFxVersion}:${platform}"
+        implementation "org.openjfx:javafx-fxml:${javaFxVersion}:${platform}"
+        implementation "org.openjfx:javafx-base:${javaFxVersion}:${platform}"
+        implementation "org.openjfx:javafx-graphics:${javaFxVersion}:${platform}"
+    }
+
     // WedasoftFX
     implementation 'com.wedasoft:wedasoftfxguicommons:1.0.0'
     implementation 'com.wedasoft:wedasoftfxtestbase:1.0.0'

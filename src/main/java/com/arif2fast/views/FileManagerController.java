@@ -66,9 +66,6 @@ public class FileManagerController {
     private Label statusLabel;
 
     @FXML
-    private MenuButton updateModulesMenuButton;
-
-    @FXML
     private Button executeUpdateButton;
 
     private final FileManagementService fileManagementService;
@@ -95,15 +92,6 @@ public class FileManagerController {
 
         List<String> modules = fileManagementService.getModules();
         moduleComboBox.getItems().addAll(modules);
-
-        // Initialize multi-select menu button for update command
-        updateModulesMenuButton.getItems().clear();
-        for (String mod : modules) {
-            CheckMenuItem item = new CheckMenuItem(mod);
-            item.selectedProperty().addListener((obs, wasSelected, isSelected) -> updateMenuButtonText());
-            updateModulesMenuButton.getItems().add(item);
-        }
-        updateMenuButtonText();
 
         String[] versions = defaultVersions.split(",");
         versionComboBox.getItems().addAll(versions);
@@ -375,12 +363,138 @@ public class FileManagerController {
 
     @FXML
     private void handleExecuteUpdate() {
-        List<String> selectedModules = updateModulesMenuButton.getItems().stream()
-                .filter(item -> item instanceof CheckMenuItem && ((CheckMenuItem) item).isSelected())
-                .map(MenuItem::getText)
-                .toList();
+        Dialog<List<String>> dialog = new Dialog<>();
+        dialog.setTitle("Execution Mode");
+        dialog.setHeaderText("Select Update Execution Mode");
 
-        String modulesDisplay = selectedModules.isEmpty() ? "ALL" : String.join(", ", selectedModules);
+        Label autoDesc = new Label("Automatically detects and executes modules containing valid YAML or SQLX scripts. Skips protected YAML.");
+        autoDesc.setWrapText(true);
+        autoDesc.setStyle("-fx-text-fill: #555555; -fx-font-size: 11px; -fx-padding: 0 0 5 25;");
+
+        Label manualDesc = new Label("Select exactly which modules to execute from the dropdown list manually. None Selected means all modules will be executed.");
+        manualDesc.setWrapText(true);
+        manualDesc.setStyle("-fx-text-fill: #555555; -fx-font-size: 11px; -fx-padding: 0 0 5 25;");
+
+        ToggleGroup group = new ToggleGroup();
+        RadioButton autoRadio = new RadioButton("Auto Execute (Smart Mode)");
+        autoRadio.setStyle("-fx-font-weight: bold; -fx-text-fill: #333333;");
+        autoRadio.setToggleGroup(group);
+        autoRadio.setSelected(true);
+
+        RadioButton manualRadio = new RadioButton("Manual Execute");
+        manualRadio.setStyle("-fx-font-weight: bold; -fx-text-fill: #333333;");
+        manualRadio.setToggleGroup(group);
+
+        VBox autoBox = new VBox(2, autoRadio, autoDesc);
+        VBox manualBox = new VBox(2, manualRadio, manualDesc);
+
+        MenuButton modulesMenuButton = new MenuButton("Select Modules");
+        modulesMenuButton.setMaxWidth(Double.MAX_VALUE);
+        modulesMenuButton.setDisable(true);
+        modulesMenuButton.setStyle("-fx-font-size: 13px; -fx-padding: 5;");
+
+        List<String> modules = fileManagementService.getModules();
+        for (String mod : modules) {
+            CheckMenuItem item = new CheckMenuItem(mod);
+            item.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+                long count = modulesMenuButton.getItems().stream()
+                        .filter(i -> i instanceof CheckMenuItem && ((CheckMenuItem) i).isSelected())
+                        .count();
+                if (count == 0) {
+                    modulesMenuButton.setText("Select Modules");
+                } else {
+                    List<String> selected = modulesMenuButton.getItems().stream()
+                            .filter(i -> i instanceof CheckMenuItem && ((CheckMenuItem) i).isSelected())
+                            .map(MenuItem::getText)
+                            .toList();
+                    if (selected.size() <= 4) {
+                        modulesMenuButton.setText(String.join(", ", selected));
+                    } else {
+                        modulesMenuButton.setText(count + " Modules Selected");
+                    }
+                }
+            });
+            modulesMenuButton.getItems().add(item);
+        }
+
+        manualRadio.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            modulesMenuButton.setDisable(!isSelected);
+        });
+
+        HBox manualControlLayout = new HBox(modulesMenuButton);
+        manualControlLayout.setPadding(new javafx.geometry.Insets(0, 0, 0, 25));
+        HBox.setHgrow(modulesMenuButton, Priority.ALWAYS);
+
+        VBox combinedManualBox = new VBox(8, manualBox, manualControlLayout);
+
+        VBox contentBox = new VBox(15, autoBox, combinedManualBox);
+        contentBox.setPadding(new javafx.geometry.Insets(15, 20, 15, 20));
+        contentBox.setStyle("-fx-background-color: transparent;");
+
+        dialog.getDialogPane().setContent(contentBox);
+        dialog.getDialogPane().setPrefWidth(550);
+        dialog.getDialogPane().setMinHeight(300);
+
+        ButtonType executeBtn = new ButtonType("Execute", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelBtn = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(executeBtn, cancelBtn);
+
+        Platform.runLater(() -> {
+            Button btnExecute = (Button) dialog.getDialogPane().lookupButton(executeBtn);
+            if (btnExecute != null) {
+                btnExecute.setStyle("-fx-background-color: #1976d2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 15 8 15;");
+                btnExecute.setMinWidth(120);
+            }
+            Button btnCancel = (Button) dialog.getDialogPane().lookupButton(cancelBtn);
+            if (btnCancel != null) {
+                btnCancel.setStyle("-fx-padding: 8 15 8 15;");
+                btnCancel.setMinWidth(100);
+            }
+        });
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == executeBtn) {
+                if (autoRadio.isSelected()) {
+                    List<String> autoModules = fileManagementService.getAllFiles().stream()
+                            .filter(f -> {
+                                String name = f.getFileName().toLowerCase();
+                                boolean isYamlOrSqlx = name.endsWith(".yaml") || name.endsWith(".sqlx");
+                                boolean isProtected = f.getFileName().startsWith("9999995");
+                                return isYamlOrSqlx && !isProtected;
+                            })
+                            .map(FileInfoDTO::getModuleName)
+                            .distinct()
+                            .toList();
+                    
+                    if (autoModules.isEmpty()) {
+                        return new ArrayList<>(Collections.singletonList("AUTO_EMPTY_SKIP"));
+                    }
+                    return autoModules;
+                } else {
+                    return modulesMenuButton.getItems().stream()
+                            .filter(item -> item instanceof CheckMenuItem && ((CheckMenuItem) item).isSelected())
+                            .map(MenuItem::getText)
+                            .toList();
+                }
+            }
+            return null;
+        });
+
+        Optional<List<String>> dialogResult = dialog.showAndWait();
+
+        if (dialogResult.isEmpty()) {
+            return;
+        }
+
+        List<String> selectedModules = dialogResult.get();
+        boolean isAuto = autoRadio.isSelected();
+
+        if (isAuto && selectedModules.size() == 1 && "AUTO_EMPTY_SKIP".equals(selectedModules.get(0))) {
+            showInfo("Auto Execute", "No eligible modules found. (Only found protected files or no YAML/SQLX files)");
+            return;
+        }
+
+        String modulesDisplay = (selectedModules.isEmpty() && !isAuto) ? "ALL" : String.join(", ", selectedModules);
         updateStatus("Executing update for: " + modulesDisplay);
 
         // Create the dialog with TextArea that will update in real-time
@@ -450,29 +564,6 @@ public class FileManagerController {
                 }
             });
         }).start();
-    }
-
-    private void updateMenuButtonText() {
-        long count = updateModulesMenuButton.getItems().stream()
-                .filter(item -> item instanceof CheckMenuItem && ((CheckMenuItem) item).isSelected())
-                .count();
-        // Button is always enabled, empty selection means "all modules"
-        // executeUpdateButton.setDisable(count == 0);
-
-        if (count == 0) {
-            updateModulesMenuButton.setText("Select Modules");
-        } else {
-            List<String> selected = updateModulesMenuButton.getItems().stream()
-                    .filter(item -> item instanceof CheckMenuItem && ((CheckMenuItem) item).isSelected())
-                    .map(MenuItem::getText)
-                    .toList();
-
-            if (selected.size() <= 4) {
-                updateModulesMenuButton.setText(String.join(", ", selected));
-            } else {
-                updateModulesMenuButton.setText(count + " Modules Selected");
-            }
-        }
     }
 
     private void loadFileTree() {
