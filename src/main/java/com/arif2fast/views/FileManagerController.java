@@ -32,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 @Component
@@ -79,6 +80,8 @@ public class FileManagerController {
 
     private List<File> selectedFiles = new ArrayList<>();
     private BooleanProperty isFileSelected = new SimpleBooleanProperty(false);
+    private final Preferences prefs = Preferences.userNodeForPackage(FileManagerController.class);
+    private static final String LAST_BROWSE_DIR = "last_browse_dir";
 
     public FileManagerController(FileManagementService fileManagementService,
             ScriptExecutorService scriptExecutorService) {
@@ -112,6 +115,16 @@ public class FileManagerController {
         // Update button is always enabled
         // executeUpdateButton.setDisable(true);
 
+        // Add double click to edit file
+        fileTreeView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                TreeItem<String> item = fileTreeView.getSelectionModel().getSelectedItem();
+                if (item != null && item.isLeaf() && item.getParent() != null && !item.getParent().getValue().equals("Files")) {
+                    handleEditFile(item);
+                }
+            }
+        });
+
         loadFileTree();
 
         updateStatus("Ready");
@@ -127,9 +140,18 @@ public class FileManagerController {
                 new FileChooser.ExtensionFilter("SQLX Files", "*.sqlx"),
                 new FileChooser.ExtensionFilter("YAML Files", "*.yaml"));
 
+        String lastDir = prefs.get(LAST_BROWSE_DIR, null);
+        if (lastDir != null) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+
         List<File> files = fileChooser.showOpenMultipleDialog(browseButton.getScene().getWindow());
 
         if (files != null && !files.isEmpty()) {
+            prefs.put(LAST_BROWSE_DIR, files.get(0).getParentFile().getAbsolutePath());
             selectedFiles = files;
             isFileSelected.set(true);
             if (files.size() == 1) {
@@ -188,6 +210,77 @@ public class FileManagerController {
     private void handleRefresh() {
         loadFileTree();
         updateStatus("File list refreshed");
+    }
+
+    private void handleEditFile(TreeItem<String> item) {
+        Path path = fileManagementService.getPathFromTreeItem(item);
+        if (path == null || !Files.isRegularFile(path)) {
+            showError("Cannot read file.");
+            return;
+        }
+
+        String fileName = path.getFileName().toString();
+        String moduleName = "unknown";
+        try {
+            Path relative = Paths.get(fileManagementService.getLiquibaseDirectory()).relativize(path);
+            if (relative.getNameCount() > 0) {
+                moduleName = relative.getName(0).toString();
+            }
+        } catch (Exception e) {
+            log.error("Could not determine module name", e);
+        }
+
+        try {
+            String content = Files.readString(path);
+            showFileEditorDialog(moduleName, fileName, path, content);
+        } catch (Exception e) {
+            log.error("Error reading file", e);
+            showError("Error reading file: " + e.getMessage());
+        }
+    }
+
+    private void showFileEditorDialog(String moduleName, String fileName, Path liquibasePath, String content) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Edit File");
+        dialog.setHeaderText("Editing: " + moduleName + " / " + fileName);
+        dialog.setResizable(true);
+
+        TextArea textArea = new TextArea(content);
+        textArea.setPrefWidth(800);
+        textArea.setPrefHeight(600);
+        textArea.setStyle("-fx-font-family: 'Consolas', 'Courier New', monospace;");
+
+        VBox box = new VBox(textArea);
+        VBox.setVgrow(textArea, Priority.ALWAYS);
+        dialog.getDialogPane().setContent(box);
+
+        ButtonType saveBtnType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelBtnType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveBtnType, cancelBtnType);
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == saveBtnType) {
+                return textArea.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(newContent -> {
+            try {
+                // Save to Liquibase Directory
+                Files.writeString(liquibasePath, newContent);
+                // Save to Project Directory (sync)
+                if (!moduleName.equals("unknown")) {
+                    fileManagementService.saveContentToProject(moduleName, fileName, newContent);
+                }
+                updateStatus("File saved: " + fileName);
+                showInfo("Save Successful", "File changes have been saved to both Liquibase and Project directories.");
+            } catch (Exception e) {
+                log.error("Error saving file: {}", fileName, e);
+                showError("Failed to save file: " + e.getMessage());
+            }
+        });
     }
 
     @FXML

@@ -169,6 +169,30 @@ public class FileManagementService {
         }
     }
 
+    public void saveContentToProject(String moduleName, String fileName, String content) {
+        Path moduleProjectDir = Paths.get(projectDirectory, moduleName, "9.0.0.X");
+        if (!Files.exists(moduleProjectDir)) {
+            log.warn("Project directory for module {} does not exist: {}", moduleName, moduleProjectDir);
+            return;
+        }
+
+        try (Stream<Path> walk = Files.walk(moduleProjectDir)) {
+            List<Path> matches = walk.filter(p -> p.getFileName().toString().equals(fileName))
+                    .toList();
+
+            for (Path p : matches) {
+                try {
+                    Files.writeString(p, content);
+                    log.info("Updated sync file in project directory: {}", p);
+                } catch (IOException e) {
+                    log.error("Failed to update sync file: {}", p, e);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Error walking project directory for update: {}", moduleProjectDir, e);
+        }
+    }
+
     public Path getPathFromTreeItem(TreeItem<String> item) {
         if (item == null || item.getValue() == null) {
             return null;
